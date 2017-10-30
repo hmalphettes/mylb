@@ -160,6 +160,7 @@ Vagrant.configure("2") do |config|
 
     # install docker-compose
     config.vm.provision :shell, name: 'install', privileged: false, inline: <<eos
+        sudo bash -c 'if ! grep 172.17.8.101 /etc/hosts; then echo "172.17.8.101    whoami.local" >> /etc/hosts; fi'
         if [ ! -f /opt/bin/docker-compose ]; then
             curl -L https://github.com/docker/compose/releases/download/1.17.0-rc1/docker-compose-Linux-x86_64 > docker-compose
             chmod +x docker-compose

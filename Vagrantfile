@@ -166,6 +166,8 @@ Vagrant.configure("2") do |config|
             sudo mkdir -p /opt/bin
             sudo mv docker-compose /opt/bin
         fi
+        cd /home/core/share/
+        docker-compose up
 eos
 
 

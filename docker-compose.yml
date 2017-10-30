@@ -1,25 +1,25 @@
-version: '2'
+version: '3'
 
 services:
   nginx-proxy:
     image: jwilder/nginx-proxy
     ports:
-      - "80:80"
       - "443:443"
     volumes:
       - /var/run/docker.sock:/tmp/docker.sock:ro
+      - /home/core/share/etc/ssl:/etc/nginx/certs
 
   whoami1:
     image: jwilder/whoami
     environment:
-      - VIRTUAL_HOST=whoami.local
+      - VIRTUAL_HOST=mylb.sg
 
   whoami2:
     image: jwilder/whoami
     environment:
-      - VIRTUAL_HOST=whoami.local
+      - VIRTUAL_HOST=mylb.sg
 
   whoami3:
     image: jwilder/whoami
     environment:
-      - VIRTUAL_HOST=whoami.local
+      - VIRTUAL_HOST=mylb.sg

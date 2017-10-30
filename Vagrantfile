@@ -18,10 +18,6 @@ if not plugins_to_install.empty?
   end
 end
 
-CLOUD_CONFIG_PATH = File.join(File.dirname(__FILE__), "user-data")
-IGNITION_CONFIG_PATH = File.join(File.dirname(__FILE__), "config.ign")
-CONFIG = File.join(File.dirname(__FILE__), "config.rb")
-
 # Defaults for config options defined in CONFIG
 $num_instances = 1
 $instance_name_prefix = "core"
@@ -32,7 +28,7 @@ $vm_memory = 1024
 $vm_cpus = 1
 $vb_cpuexecutioncap = 100
 $shared_folders = {}
-$forwarded_ports = {}
+$forwarded_ports = { 443 => 8443 }
 
 # Attempt to apply the deprecated environment variable NUM_INSTANCES to
 # $num_instances while allowing config.rb to override it
@@ -40,15 +36,7 @@ if ENV["NUM_INSTANCES"].to_i > 0 && ENV["NUM_INSTANCES"]
   $num_instances = ENV["NUM_INSTANCES"].to_i
 end
 
-if File.exist?(CONFIG)
-  require CONFIG
-end
-
 # Use old vb_xxx config variables when set
-def vm_gui
-  $vb_gui.nil? ? $vm_gui : $vb_gui
-end
-
 def vm_memory
   $vb_memory.nil? ? $vm_memory : $vb_memory
 end
@@ -65,12 +53,6 @@ Vagrant.configure("2") do |config|
 
   config.vm.box = "coreos-alpha"
   config.vm.box_url = "https://alpha.release.core-os.net/amd64-usr/current/coreos_production_vagrant_virtualbox.json"
-
-  ["vmware_fusion", "vmware_workstation"].each do |vmware|
-    config.vm.provider vmware do |v, override|
-      override.vm.box_url = "https://alpha.release.core-os.net/amd64-usr/current/coreos_production_vagrant_vmware_fusion.json"
-    end
-  end
 
   config.vm.provider :virtualbox do |v|
     # On VirtualBox, we don't have guest additions or a functional vboxsf
@@ -90,28 +72,6 @@ Vagrant.configure("2") do |config|
     config.vm.define vm_name = "%s-%02d" % [$instance_name_prefix, i] do |config|
       config.vm.hostname = vm_name
 
-      if $enable_serial_logging
-        logdir = File.join(File.dirname(__FILE__), "log")
-        FileUtils.mkdir_p(logdir)
-
-        serialFile = File.join(logdir, "%s-serial.txt" % vm_name)
-        FileUtils.touch(serialFile)
-
-        ["vmware_fusion", "vmware_workstation"].each do |vmware|
-          config.vm.provider vmware do |v, override|
-            v.vmx["serial0.present"] = "TRUE"
-            v.vmx["serial0.fileType"] = "file"
-            v.vmx["serial0.fileName"] = serialFile
-            v.vmx["serial0.tryNoRxLoss"] = "FALSE"
-          end
-        end
-
-        config.vm.provider :virtualbox do |vb, override|
-          vb.customize ["modifyvm", :id, "--uart1", "0x3F8", "4"]
-          vb.customize ["modifyvm", :id, "--uartmode1", serialFile]
-        end
-      end
-
       if $expose_docker_tcp
         config.vm.network "forwarded_port", guest: 2375, host: ($expose_docker_tcp + i - 1), host_ip: "127.0.0.1", auto_correct: true
       end
@@ -120,16 +80,8 @@ Vagrant.configure("2") do |config|
         config.vm.network "forwarded_port", guest: guest, host: host, auto_correct: true
       end
 
-      ["vmware_fusion", "vmware_workstation"].each do |vmware|
-        config.vm.provider vmware do |v|
-          v.gui = vm_gui
-          v.vmx['memsize'] = vm_memory
-          v.vmx['numvcpus'] = vm_cpus
-        end
-      end
-
       config.vm.provider :virtualbox do |vb|
-        vb.gui = vm_gui
+        vb.gui = false
         vb.memory = vm_memory
         vb.cpus = vm_cpus
         vb.customize ["modifyvm", :id, "--cpuexecutioncap", "#{$vb_cpuexecutioncap}"]
@@ -141,26 +93,15 @@ Vagrant.configure("2") do |config|
       # This tells Ignition what the IP for eth1 (the host-only adapter) should be
       config.ignition.ip = ip
 
-      # Uncomment below to enable NFS for sharing the host machine into the coreos-vagrant VM.
+      # Enable NFS for sharing the host machine into the coreos-vagrant VM.
       config.vm.synced_folder ".", "/home/core/share", id: "core", :nfs => true, :mount_options => ['nolock,vers=3,udp']
       $shared_folders.each_with_index do |(host_folder, guest_folder), index|
         config.vm.synced_folder host_folder.to_s, guest_folder.to_s, id: "core-share%02d" % index, nfs: true, mount_options: ['nolock,vers=3,udp']
       end
 
-      if $share_home
-        config.vm.synced_folder ENV['HOME'], ENV['HOME'], id: "home", :nfs => true, :mount_options => ['nolock,vers=3,udp']
-      end
-
-      # This shouldn't be used for the virtualbox provider (it doesn't have any effect if it is though)
-      if File.exist?(CLOUD_CONFIG_PATH)
-        config.vm.provision :file, :source => "#{CLOUD_CONFIG_PATH}", :destination => "/tmp/vagrantfile-user-data"
-        config.vm.provision :shell, inline: "mkdir /var/lib/coreos-vagrant", :privileged => true
-        config.vm.provision :shell, :inline => "mv /tmp/vagrantfile-user-data /var/lib/coreos-vagrant/", :privileged => true
-      end
-
     # install docker-compose
     config.vm.provision :shell, name: 'install', privileged: false, inline: <<eos
-        sudo bash -c 'if ! grep 172.17.8.101 /etc/hosts; then echo "172.17.8.101    whoami.local" >> /etc/hosts; fi'
+        sudo bash -c 'if ! grep 172.17.8.101 /etc/hosts; then echo "172.17.8.101    mylb.sg" >> /etc/hosts; fi'
         if [ ! -f /opt/bin/docker-compose ]; then
             curl -L https://github.com/docker/compose/releases/download/1.17.0-rc1/docker-compose-Linux-x86_64 > docker-compose
             chmod +x docker-compose
@@ -177,9 +118,6 @@ eos
         config.ignition.drive_name = "config" + i.to_s
         # when the ignition config doesn't exist, the plugin automatically generates a very basic Ignition with the ssh key
         # and previously specified options (ip and hostname). Otherwise, it appends those to the provided config.ign below
-        if File.exist?(IGNITION_CONFIG_PATH)
-          config.ignition.path = 'config.ign'
-        end
       end
     end
   end

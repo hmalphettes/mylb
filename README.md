@@ -27,11 +27,12 @@ upstream {{ $upstream_name }} {
 Side note: Add a DynDNS container based on the same idea.
 ==========================================================
 I have developed a DynDNS container using the same idea and the same environment variables: https://github.com/hmalphettes/docker-route53-dyndns
-When nginx-proxy and docker-route-53-dyndns are running together, the environment variable `VIRTUAL_HOST` will make the container register the current public IP of the host on the AWS Route53 DNS and will expose the endpoint through NGINX.
 
-I have actually used this for some setups and I believe one of them is still running.
+When `nginx-proxy` and `docker-route-53-dyndns` are running together, the environment variable `VIRTUAL_HOST` will make the container register the current public IP of the host on the AWS Route53 DNS and will expose the endpoint through NGINX.
 
-Of course this functionality is provided out of the box by Kubernetes and other PaaS.
+I have actually used this for some setups.
+
+This functionality is provided out of the box by Kubernetes and other PaaS.
 
 Test with Vagrant on Macos:
 ===========================
@@ -57,8 +58,8 @@ Round robin is not the best algo for a load balancer; the best is usually to ran
 
 Test from your browser:
 - `sudo bash -c 'echo "127.0.0.1 mylb.sg" >> /etc/hosts'`
-- `open https://mylb.sg`; ignore the TLS warnings: this is a
-- refresh the page a few times. It displays the container-ID of the 3 workers in a loop.
+- `open https://mylb.sg:8443`; ignore the TLS warnings: this is a self-signed certificate.
+- refresh the page a few times. It displays the container-ID of the 3 workers one after the other.
 
 
 

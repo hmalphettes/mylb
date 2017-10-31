@@ -30,7 +30,7 @@ I have developed a DynDNS container using the same idea and the same environment
 
 When `nginx-proxy` and `docker-route-53-dyndns` are running together, the environment variable `VIRTUAL_HOST` will make the container register the current public IP of the host on the AWS Route53 DNS and will expose the endpoint through NGINX.
 
-I have actually used this for some setups.
+I have actually used this for some setups: https://hub.docker.com/r/hmalphettes/nginx-proxy/builds/
 
 This functionality is provided out of the box by Kubernetes and other PaaS.
 
@@ -54,7 +54,7 @@ curl -k https://mylb.sg
 curl -k https://mylb.sg
 curl -k https://mylb.sg
 ```
-Round robin is not the best algo for a load balancer; the best is usually to randomly select one of the healthy worker.
+Round robin is not the best algo for a load balancer; the best is usually to randomly select one of the healthy workers.
 
 Test from your browser:
 - `sudo bash -c 'echo "127.0.0.1 mylb.sg" >> /etc/hosts'`

@@ -29,6 +29,7 @@ $vm_cpus = 1
 $vb_cpuexecutioncap = 100
 $shared_folders = {}
 $forwarded_ports = { 443 => 8443 }
+$expose_docker_tcp = 2375
 
 # Attempt to apply the deprecated environment variable NUM_INSTANCES to
 # $num_instances while allowing config.rb to override it
@@ -99,6 +100,24 @@ Vagrant.configure("2") do |config|
         config.vm.synced_folder host_folder.to_s, guest_folder.to_s, id: "core-share%02d" % index, nfs: true, mount_options: ['nolock,vers=3,udp']
       end
 
+    # Expose docker over http.
+    config.vm.provision :shell, name: 'expose-docker-over-http', privileged: true, inline: <<eos
+    [ -f /etc/systemd/system/docker-tcp.socket ] && exit 0;
+echo "[Unit]
+Description=Docker Socket for the API
+
+[Socket]
+ListenStream=2375
+BindIPv6Only=both
+Service=docker.service
+
+[Install]
+WantedBy=sockets.target" > /etc/systemd/system/docker-tcp.socket
+systemctl enable docker-tcp.socket
+systemctl stop docker
+systemctl start docker-tcp.socket
+systemctl start docker
+eos
     # install docker-compose
     config.vm.provision :shell, name: 'install', privileged: false, inline: <<eos
         sudo bash -c 'if ! grep 172.17.8.101 /etc/hosts; then echo "172.17.8.101    mylb.sg" >> /etc/hosts; fi'

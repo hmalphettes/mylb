@@ -32,7 +32,8 @@ When `nginx-proxy` and `docker-route-53-dyndns` are running together, the enviro
 
 I have actually used this for some setups: https://hub.docker.com/r/hmalphettes/nginx-proxy/builds/
 
-This functionality is provided out of the box by Kubernetes and other PaaS.
+When running a microservice on Kubernetes that needs to be exposed as a public API, one could consider using ambassador or contour.
+Reference: https://www.getambassador.io/about/why-ambassador
 
 Test with Vagrant on Macos:
 ===========================

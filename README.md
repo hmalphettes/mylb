@@ -4,6 +4,8 @@ My Load Balancer
 Test NGINX as a Load balancer and TLS termination.
 Use docker-compose to start the containers involved.
 
+[![mylb-in-action](mylb-in-action.png?raw=true)]
+
 Explanation:
 ============
 The docker-nginx container runs NGINX as a load balancer and TLS termination.
